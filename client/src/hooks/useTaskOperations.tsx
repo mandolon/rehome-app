@@ -12,7 +12,11 @@ export function useTaskOperations() {
 
   // WebSocket connection for real-time updates
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const wsUrl = `${protocol}//${window.location.host}/ws`;
+  // In development, always use localhost:5000, in production use current host
+  const isDevelopment = import.meta.env.DEV;
+  const wsUrl = isDevelopment 
+    ? `${protocol}//localhost:5000/ws`
+    : `${protocol}//${window.location.host}/ws`;
   
   const handleWebSocketMessage = useCallback((message: { event: string; data: any }) => {
     console.log('WebSocket message received:', message);
