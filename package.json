@@ -1,6 +1,7 @@
 {
-  "name": "rest-express",
+  "name": "arch-project-manager",
   "version": "1.0.0",
+  "description": "Professional architecture and construction project management platform",
   "type": "module",
   "license": "MIT",
   "scripts": {
