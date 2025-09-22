@@ -1,7 +1,7 @@
 {
-  "name": "arch-project-manager",
+  "name": "collab-arch-platform",
   "version": "1.0.0",
-  "description": "Professional architecture and construction project management platform",
+  "description": "Multi-role collaborative platform for architecture and construction teams with AI agent assistance",
   "type": "module",
   "license": "MIT",
   "scripts": {
