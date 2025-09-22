@@ -51,7 +51,7 @@ export function useTaskOperations() {
   const { isConnected } = useWebSocket(wsUrl, handleWebSocketMessage);
 
   // Fetch tasks query with direct API call
-  const { data: tasks = [], isLoading } = useQuery({
+  const { data: tasks = [], isLoading } = useQuery<Task[]>({
     queryKey: ['api-tasks'],
     queryFn: async () => {
       console.log('Making direct API call for tasks in useTaskOperations');
@@ -63,12 +63,19 @@ export function useTaskOperations() {
       console.log('Tasks loaded in useTaskOperations:', data.length);
       return data;
     },
+    staleTime: 30 * 60 * 1000, // 30 minutes
+    gcTime: 60 * 60 * 1000, // 1 hour (formerly cacheTime)
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchInterval: false,
+    refetchOnMount: false,
+    retry: false,
   });
 
   // Update local state when tasks change
   useEffect(() => {
-    const activeTasks = tasks.filter(task => !task.archived);
-    const archived = tasks.filter(task => task.archived);
+    const activeTasks = tasks.filter((task: Task) => !task.archived);
+    const archived = tasks.filter((task: Task) => task.archived);
     setCustomTasks(activeTasks);
     setArchivedTasks(archived);
   }, [tasks]);
@@ -134,14 +141,14 @@ export function useTaskOperations() {
   }, [createTaskMutation.mutate]);
 
   const updateTaskById = useCallback((taskId: number, updates: Partial<Task>) => {
-    const task = tasks.find(t => t.id === taskId);
+    const task = tasks.find((t: Task) => t.id === taskId);
     if (task) {
       updateTaskMutation.mutate({ taskId: task.taskId, updates });
     }
   }, [tasks, updateTaskMutation.mutate]);
 
   const deleteTaskHandler = useCallback(async (taskId: number): Promise<void> => {
-    const task = tasks.find(t => t.id === taskId);
+    const task = tasks.find((t: Task) => t.id === taskId);
     if (task) {
       deleteTaskMutation.mutate(task.taskId);
     }
@@ -161,11 +168,11 @@ export function useTaskOperations() {
   }, []);
 
   const getTasksByStatus = useCallback((status: string) => {
-    return tasks.filter(task => task.status === status && !task.archived);
+    return tasks.filter((task: Task) => task.status === status && !task.archived);
   }, [tasks]);
 
   const getAllTasks = useCallback(() => {
-    return tasks.filter(task => !task.archived);
+    return tasks.filter((task: Task) => !task.archived);
   }, [tasks]);
 
   const triggerRefresh = useCallback(() => {

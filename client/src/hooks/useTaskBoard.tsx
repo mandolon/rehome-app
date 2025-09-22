@@ -38,6 +38,11 @@ export const useTaskBoard = () => {
     queryFn: fetchTasksDirectly,
     retry: false,
     refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchInterval: false,
+    refetchOnMount: false,
+    staleTime: 30 * 60 * 1000, // 30 minutes
+    gcTime: 60 * 60 * 1000, // 1 hour
   });
 
   // Debug the query state

@@ -16,6 +16,9 @@ export default defineConfig({
         ]
       : []),
   ],
+  server: {
+    hmr: false,  // Disable HMR completely to avoid WebSocket issues
+  },
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),

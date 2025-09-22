@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 
 interface WebSocketMessage {
   event: string;
@@ -9,6 +9,12 @@ export function useWebSocket(url: string, onMessage?: (message: WebSocketMessage
   const [isConnected, setIsConnected] = useState(false);
   const ws = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
+  const onMessageRef = useRef(onMessage);
+
+  // Keep the onMessage reference up to date
+  useEffect(() => {
+    onMessageRef.current = onMessage;
+  });
 
   useEffect(() => {
     function connect() {
@@ -23,7 +29,7 @@ export function useWebSocket(url: string, onMessage?: (message: WebSocketMessage
         ws.current.onmessage = (event) => {
           try {
             const message: WebSocketMessage = JSON.parse(event.data);
-            onMessage?.(message);
+            onMessageRef.current?.(message);
           } catch (error) {
             console.error('Failed to parse WebSocket message:', error);
           }
@@ -58,13 +64,13 @@ export function useWebSocket(url: string, onMessage?: (message: WebSocketMessage
         ws.current.close();
       }
     };
-  }, [url, onMessage]);
+  }, [url]); // Removed onMessage from dependencies
 
-  const sendMessage = (message: any) => {
+  const sendMessage = useCallback((message: any) => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
       ws.current.send(JSON.stringify(message));
     }
-  };
+  }, []);
 
   return { isConnected, sendMessage };
 }
