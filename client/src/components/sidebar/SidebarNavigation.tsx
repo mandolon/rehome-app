@@ -14,15 +14,20 @@ import {
   ClipboardList,
   Clock,
   FolderOpen,
-  FileText as PdfIcon
+  FileText as PdfIcon,
+  Calendar
 } from 'lucide-react';
+
+// Internal
 import { cn } from '@/lib/utils';
+import { useUser } from '@/contexts/UserContext';
+
+// UI Components
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { useUser } from '@/contexts/UserContext';
 
 interface SidebarNavigationProps {
   isCollapsed: boolean;

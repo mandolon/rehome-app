@@ -1,10 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+// Internal
+import { useUser } from '@/contexts/UserContext';
+
+// Components
 import AppLayout from '@/components/layout/AppLayout';
 import DashboardContent from '@/components/dashboard/DashboardContent';
 import DashboardPageHeader from '@/components/dashboard/DashboardPageHeader';
-import { useUser } from '@/contexts/UserContext';
-import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
   const { currentUser } = useUser();

@@ -1,12 +1,19 @@
 
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useLocation, Navigate, useNavigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { useUser } from "./contexts/UserContext";
+
+// UI Components
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClientProvider } from "@tanstack/react-query";
+
+// Internal
 import { queryClient } from "@/lib/queryClient";
-import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
+
+// Pages
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import ProjectPage from "./pages/ProjectPage";
@@ -29,11 +36,15 @@ import AdminHelpPage from "./pages/AdminHelpPage";
 import TeamHelpPage from "./pages/TeamHelpPage";
 import ClientHelpPage from "./pages/ClientHelpPage";
 import PDFViewerPage from "./pages/PDFViewerPage";
+
+// Contexts
 import { SidebarProvider } from "./contexts/SidebarContext";
 import { ProjectDataProvider } from "./contexts/ProjectDataContext";
 import { UserProvider } from "./contexts/UserContext";
 import { TaskProvider } from "./contexts/TaskContext";
 import { TaskAttachmentProvider } from "./contexts/TaskAttachmentContext";
+
+// Components
 import ImpersonationGate from "./components/ImpersonationGate";
 import LoginPage from "./components/auth/LoginPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
@@ -117,9 +128,6 @@ const App = () => {
     </AppProviders>
   );
 };
-
-import { useUser } from "./contexts/UserContext";
-import { useNavigate } from "react-router-dom";
 
 const HelpRedirector = () => {
   const { currentUser } = useUser();
