@@ -12,7 +12,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    document.title = 'Dashboard';
+    document.title = 'Dashboard - CollabArch';
   }, []);
 
   // Redirect client users to the client dashboard
