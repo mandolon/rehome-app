@@ -4,11 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Models\TaskMessage;
 use App\Models\Task;
+use App\Http\Requests\UpdateTaskMessageRequest;
+use App\Http\Resources\TaskMessageResource;
+use App\Http\Traits\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class TaskMessageController extends Controller
 {
+    use ApiResponse, AuthorizesRequests;
     /**
      * Get all messages for a specific task
      */
@@ -16,12 +21,17 @@ class TaskMessageController extends Controller
     {
         $task = Task::where('task_id', $taskId)->firstOrFail();
         
+        $this->authorize('view', $task);
+        
         $messages = TaskMessage::byTask($taskId)
             ->with('user')
             ->orderBy('created_at', 'asc')
             ->get();
 
-        return response()->json($messages);
+        return $this->resourceResponse(
+            TaskMessageResource::collection($messages),
+            'Task messages retrieved successfully'
+        );
     }
 
     /**
@@ -30,6 +40,9 @@ class TaskMessageController extends Controller
     public function store(Request $request, string $taskId): JsonResponse
     {
         $task = Task::where('task_id', $taskId)->firstOrFail();
+
+        $this->authorize('view', $task);
+        $this->authorize('create', TaskMessage::class);
 
         $validated = $request->validate([
             'content' => 'required|string',
@@ -51,22 +64,22 @@ class TaskMessageController extends Controller
         // Broadcast real-time update
         broadcast(new \App\Events\TaskMessageCreated($message));
 
-        return response()->json($message, 201);
+        return $this->createdResponse(
+            new TaskMessageResource($message),
+            'Message created successfully'
+        );
     }
 
     /**
      * Update a specific message
      */
-    public function update(Request $request, string $taskId, int $messageId): JsonResponse
+    public function update(UpdateTaskMessageRequest $request, string $taskId, int $messageId): JsonResponse
     {
         $message = TaskMessage::where('id', $messageId)
             ->where('task_id', $taskId)
             ->firstOrFail();
 
-        $validated = $request->validate([
-            'content' => 'sometimes|string',
-            'metadata' => 'nullable|array'
-        ]);
+        $validated = $request->validated();
 
         $message->update($validated);
         $message->load('user');
@@ -74,7 +87,10 @@ class TaskMessageController extends Controller
         // Broadcast real-time update
         broadcast(new \App\Events\TaskMessageUpdated($message));
 
-        return response()->json($message);
+        return $this->resourceResponse(
+            new TaskMessageResource($message),
+            'Message updated successfully'
+        );
     }
 
     /**
@@ -86,11 +102,13 @@ class TaskMessageController extends Controller
             ->where('task_id', $taskId)
             ->firstOrFail();
 
+        $this->authorize('delete', $message);
+
         $message->delete();
 
         // Broadcast real-time update
         broadcast(new \App\Events\TaskMessageDeleted($messageId, $taskId));
 
-        return response()->json(['message' => 'Message deleted successfully'], 204);
+        return $this->noContentResponse('Message deleted successfully');
     }
 }

@@ -3,19 +3,25 @@
 namespace App\Http\Controllers;
 
 use App\Models\Task;
+use App\Http\Requests\UpdateTaskStatusRequest;
+use App\Http\Resources\TaskResource;
+use App\Http\Traits\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\Rule;
-use Inertia\Inertia;
-use Inertia\Response;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class TaskController extends Controller
 {
+    use ApiResponse, AuthorizesRequests;
+
     /**
      * Display a listing of tasks
      */
     public function index(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', Task::class);
+
         $query = Task::with(['messages', 'creator'])
             ->active()
             ->orderBy('created_at', 'desc');
@@ -30,12 +36,34 @@ class TaskController extends Controller
         }
 
         if ($request->has('include_deleted') && $request->boolean('include_deleted')) {
+            $this->authorize('viewAll', Task::class);
             $query->withTrashed();
         }
 
         $tasks = $query->get();
 
-        return response()->json($tasks);
+        return $this->resourceResponse(
+            TaskResource::collection($tasks),
+            'Tasks retrieved successfully'
+        );
+    }
+
+    /**
+     * Get all tasks including deleted ones
+     */
+    public function allTasks(): JsonResponse
+    {
+        $this->authorize('viewAll', Task::class);
+
+        $tasks = Task::withTrashed()
+            ->with(['messages', 'creator'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return $this->resourceResponse(
+            TaskResource::collection($tasks),
+            'All tasks retrieved successfully'
+        );
     }
 
     /**
@@ -43,6 +71,8 @@ class TaskController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        $this->authorize('create', Task::class);
+
         $validated = $request->validate([
             'task_id' => 'required|string|unique:tasks,task_id',
             'title' => 'required|string|max:255',
@@ -63,7 +93,10 @@ class TaskController extends Controller
         // Broadcast real-time update
         broadcast(new \App\Events\TaskCreated($task));
 
-        return response()->json($task, 201);
+        return $this->createdResponse(
+            new TaskResource($task),
+            'Task created successfully'
+        );
     }
 
     /**
@@ -75,7 +108,12 @@ class TaskController extends Controller
             ->where('task_id', $taskId)
             ->firstOrFail();
 
-        return response()->json($task);
+        $this->authorize('view', $task);
+
+        return $this->resourceResponse(
+            new TaskResource($task),
+            'Task retrieved successfully'
+        );
     }
 
     /**
@@ -84,6 +122,8 @@ class TaskController extends Controller
     public function update(Request $request, string $taskId): JsonResponse
     {
         $task = Task::where('task_id', $taskId)->firstOrFail();
+        
+        $this->authorize('update', $task);
 
         $validated = $request->validate([
             'title' => 'sometimes|string|max:255',
@@ -103,7 +143,10 @@ class TaskController extends Controller
         // Broadcast real-time update
         broadcast(new \App\Events\TaskUpdated($task));
 
-        return response()->json($task);
+        return $this->resourceResponse(
+            new TaskResource($task),
+            'Task updated successfully'
+        );
     }
 
     /**
@@ -112,12 +155,15 @@ class TaskController extends Controller
     public function destroy(string $taskId): JsonResponse
     {
         $task = Task::where('task_id', $taskId)->firstOrFail();
+        
+        $this->authorize('delete', $task);
+        
         $task->delete();
 
         // Broadcast real-time update
         broadcast(new \App\Events\TaskDeleted($taskId));
 
-        return response()->json(['message' => 'Task deleted successfully'], 204);
+        return $this->noContentResponse('Task deleted successfully');
     }
 
     /**
@@ -129,12 +175,14 @@ class TaskController extends Controller
             ->where('task_id', $taskId)
             ->firstOrFail();
         
+        $this->authorize('forceDelete', $task);
+        
         $task->forceDelete();
 
         // Broadcast real-time update
         broadcast(new \App\Events\TaskPermanentlyDeleted($taskId));
 
-        return response()->json(['message' => 'Task permanently deleted'], 204);
+        return $this->noContentResponse('Task permanently deleted');
     }
 
     /**
@@ -146,39 +194,29 @@ class TaskController extends Controller
             ->where('task_id', $taskId)
             ->firstOrFail();
         
+        $this->authorize('restore', $task);
+        
         $task->restore();
         $task->load(['messages', 'creator']);
 
         // Broadcast real-time update
         broadcast(new \App\Events\TaskRestored($task));
 
-        return response()->json($task);
-    }
-
-    /**
-     * Get all tasks including deleted ones
-     */
-    public function allTasks(): JsonResponse
-    {
-        $tasks = Task::withTrashed()
-            ->with(['messages', 'creator'])
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        return response()->json($tasks);
+        return $this->resourceResponse(
+            new TaskResource($task),
+            'Task restored successfully'
+        );
     }
 
     /**
      * Update task status
      */
-    public function updateStatus(Request $request, string $taskId): JsonResponse
+    public function updateStatus(UpdateTaskStatusRequest $request, string $taskId): JsonResponse
     {
-        $validated = $request->validate([
-            'status' => 'required|in:redline,backlog,in_progress,in_review,completed'
-        ]);
-
         $task = Task::where('task_id', $taskId)->firstOrFail();
         
+        $validated = $request->validated();
+
         if ($validated['status'] === 'completed') {
             $task->markAsCompleted(auth()->id());
         } else {
@@ -190,7 +228,10 @@ class TaskController extends Controller
         // Broadcast real-time update
         broadcast(new \App\Events\TaskUpdated($task));
 
-        return response()->json($task);
+        return $this->resourceResponse(
+            new TaskResource($task),
+            'Task status updated successfully'
+        );
     }
 
     /**
@@ -199,12 +240,15 @@ class TaskController extends Controller
     public function archive(string $taskId): JsonResponse
     {
         $task = Task::where('task_id', $taskId)->firstOrFail();
+        
+        $this->authorize('archive', $task);
+        
         $task->archive(auth()->id());
 
         // Broadcast real-time update
         broadcast(new \App\Events\TaskArchived($task));
 
-        return response()->json(['message' => 'Task archived successfully']);
+        return $this->noContentResponse('Task archived successfully');
     }
 
     /**
@@ -212,11 +256,16 @@ class TaskController extends Controller
      */
     public function byProject(string $projectId): JsonResponse
     {
+        $this->authorize('viewProjectTasks', [Task::class, $projectId]);
+
         $tasks = Task::byProject($projectId)
             ->with(['messages', 'creator'])
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return response()->json($tasks);
+        return $this->resourceResponse(
+            TaskResource::collection($tasks),
+            'Project tasks retrieved successfully'
+        );
     }
 }

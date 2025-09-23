@@ -1,0 +1,602 @@
+openapi: 3.0.3
+info:
+  title: Task Management API
+  description: RESTful API for task and message management with role-based access control
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+servers:
+  - url: http://localhost:8000/api
+    description: Development server
+  - url: https://api.example.com/api  
+    description: Production server
+
+paths:
+  /tasks:
+    get:
+      summary: List active tasks
+      description: Retrieve a paginated list of active tasks with filtering options
+      tags:
+        - Tasks
+      security:
+        - sanctum: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter tasks by status
+          schema:
+            type: string
+            enum: [redline, backlog, in_progress, in_review, completed]
+        - name: project_id
+          in: query
+          description: Filter tasks by project ID
+          schema:
+            type: string
+        - name: include_deleted
+          in: query
+          description: Include soft-deleted tasks (admin only)
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Tasks retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /tasks/all:
+    get:
+      summary: List all tasks including deleted (Admin only)
+      description: Retrieve all tasks including soft-deleted ones. Admin access required.
+      tags:
+        - Tasks
+      security:
+        - sanctum: []
+      responses:
+        '200':
+          description: All tasks retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /tasks/{taskId}:
+    get:
+      summary: Get task by ID
+      description: Retrieve a specific task with messages and creator information
+      tags:
+        - Tasks
+      security:
+        - sanctum: []
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '200':
+          description: Task retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /tasks/{taskId}/status:
+    patch:
+      summary: Update task status
+      description: Update the status of a specific task
+      tags:
+        - Tasks
+      security:
+        - sanctum: []
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [redline, backlog, in_progress, in_review, completed]
+              example:
+                status: completed
+      responses:
+        '200':
+          description: Task status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /tasks/{taskId}/archive:
+    post:
+      summary: Archive task
+      description: Archive a specific task
+      tags:
+        - Tasks
+      security:
+        - sanctum: []
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '204':
+          description: Task archived successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /tasks/{taskId}/permanent:
+    delete:
+      summary: Permanently delete task (Admin only)
+      description: Permanently delete a task. Admin access required.
+      tags:
+        - Tasks
+      security:
+        - sanctum: []
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '204':
+          description: Task permanently deleted
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /tasks/{taskId}/restore:
+    post:
+      summary: Restore deleted task
+      description: Restore a soft-deleted task
+      tags:
+        - Tasks
+      security:
+        - sanctum: []
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '200':
+          description: Task restored successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /projects/{projectId}/tasks:
+    get:
+      summary: Get project tasks
+      description: Retrieve all tasks for a specific project
+      tags:
+        - Tasks
+        - Projects
+      security:
+        - sanctum: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          description: Project ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Project tasks retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /tasks/{taskId}/messages:
+    get:
+      summary: Get task messages
+      description: Retrieve all messages for a specific task
+      tags:
+        - Task Messages
+      security:
+        - sanctum: []
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '200':
+          description: Task messages retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskMessageListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /tasks/{taskId}/messages/{messageId}:
+    put:
+      summary: Update task message
+      description: Update a specific task message
+      tags:
+        - Task Messages
+      security:
+        - sanctum: []
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/MessageId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                  maxLength: 10000
+                  description: Updated message content
+                metadata:
+                  type: object
+                  description: Optional metadata for the message
+              example:
+                content: "Updated message content"
+                metadata:
+                  file_name: "document.pdf"
+      responses:
+        '200':
+          description: Message updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskMessageResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    delete:
+      summary: Delete task message
+      description: Delete a specific task message
+      tags:
+        - Task Messages
+      security:
+        - sanctum: []
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/MessageId'
+      responses:
+        '204':
+          description: Message deleted successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+components:
+  securitySchemes:
+    sanctum:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      description: Task ID
+      schema:
+        type: string
+
+    MessageId:
+      name: messageId
+      in: path
+      required: true
+      description: Message ID
+      schema:
+        type: integer
+
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        data:
+          description: Response data
+        meta:
+          type: object
+          properties:
+            success:
+              type: boolean
+            message:
+              type: string
+            timestamp:
+              type: string
+              format: date-time
+        errors:
+          type: array
+          items:
+            type: string
+          nullable: true
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: integer
+        task_id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [redline, backlog, in_progress, in_review, completed]
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+          nullable: true
+        project_id:
+          type: string
+          nullable: true
+        project:
+          type: string
+          nullable: true
+        due_date:
+          type: string
+          format: date-time
+          nullable: true
+        assignee:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+        created_by:
+          type: string
+          nullable: true
+        deleted_by:
+          type: string
+          nullable: true
+        is_overdue:
+          type: boolean
+        formatted_due_date:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+        archived_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskMessage'
+        creator:
+          $ref: '#/components/schemas/User'
+
+    TaskMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+        task_id:
+          type: string
+        content:
+          type: string
+        message_type:
+          type: string
+          enum: [comment, system, attachment]
+        metadata:
+          type: object
+          nullable: true
+        formatted_content:
+          type: string
+        time_ago:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        user:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [admin, team, client]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    TaskResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Task'
+
+    TaskListResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Task'
+
+    TaskMessageResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/TaskMessage'
+
+    TaskMessageListResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/TaskMessage'
+
+    ErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            meta:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: false
+                message:
+                  type: string
+                timestamp:
+                  type: string
+                  format: date-time
+
+  responses:
+    UnauthorizedError:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            data: null
+            meta:
+              success: false
+              message: "Unauthenticated"
+              timestamp: "2024-12-19T10:30:00Z"
+            errors: ["Authentication required"]
+
+    ForbiddenError:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            data: null
+            meta:
+              success: false
+              message: "Forbidden"
+              timestamp: "2024-12-19T10:30:00Z"
+            errors: ["You don't have permission to perform this action"]
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            data: null
+            meta:
+              success: false
+              message: "Not Found"
+              timestamp: "2024-12-19T10:30:00Z"
+            errors: ["Resource not found"]
+
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            data: null
+            meta:
+              success: false
+              message: "Validation failed"
+              timestamp: "2024-12-19T10:30:00Z"
+            errors: 
+              - "The status field is required"
+              - "The status must be one of: redline, backlog, in_progress, in_review, completed"
+
+tags:
+  - name: Tasks
+    description: Task management operations
+  - name: Task Messages
+    description: Task message operations
+  - name: Projects
+    description: Project-related operations

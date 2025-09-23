@@ -104,4 +104,23 @@ class User extends Authenticatable
     {
         return in_array($this->role, ['admin', 'manager']);
     }
+
+    public function hasProjectAccess($projectId)
+    {
+        // For now, implement basic project access logic
+        // This should be expanded based on your project access requirements
+        if ($this->isAdmin()) {
+            return true;
+        }
+        
+        // Team members have access to all projects for now
+        if ($this->role === 'team') {
+            return true;
+        }
+        
+        // Clients can access projects they're assigned to
+        // This would typically involve a project_users pivot table
+        // For now, we'll allow access to tasks they created
+        return true; // Placeholder - implement proper project access logic
+    }
 }
